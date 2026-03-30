@@ -31,22 +31,3 @@ export type SnapshotResponse = {
   snapshot: SnapshotRow[];
   history: HistoryRow[];
 };
-
-export type SearchHit = {
-  symbol: string;
-  name: string;
-  exchange: string;
-  quote_type: string;
-};
-
-export type WatchlistEntry = {
-  line: string;
-  yahoo: string;
-};
-
-export type WatchlistPatchResponse = {
-  entries: WatchlistEntry[];
-  added?: string[];
-  skipped?: { symbol: string; reason: string }[];
-  removed?: string[];
-};
