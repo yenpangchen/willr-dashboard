@@ -1,0 +1,4 @@
+# One symbol per line. Omit suffix for listed stocks (.TW added automatically).
+# OTC use full suffix, e.g. 6488.TWO
+00981A
+2330
