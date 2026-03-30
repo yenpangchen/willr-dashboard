@@ -168,11 +168,12 @@ def run_snapshot(
     workers: int = 10,
     watchlist_path: Path | None = None,
     tw50_path: Path | None = None,
+    symbols_override: list[str] | None = None,
 ) -> dict[str, Any]:
     wl = watchlist_path or (ROOT / "watchlist.txt")
     t50 = tw50_path or (ROOT / "tw50_constituents.txt")
     path = t50 if universe == "tw50" else wl
-    symbols = load_symbols(path)
+    symbols = symbols_override if symbols_override is not None else load_symbols(path)
     if not symbols:
         raise ValueError(f"No symbols in {path}")
 

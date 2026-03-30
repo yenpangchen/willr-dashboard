@@ -33,6 +33,12 @@ function fmtVol(n: number | null): string {
 type Universe = "tw50" | "watchlist";
 type SortKey = "symbol" | "williams_r" | "williams_r_desc";
 
+function yahooToLine(yahoo: string): string {
+  const s = yahoo.trim().toUpperCase();
+  if (s.endsWith(".TW") || s.endsWith(".TWO")) return s.slice(0, -3);
+  return s;
+}
+
 function useDebounced<T>(value: T, delay: number): T {
   const [v, setV] = useState(value);
   useEffect(() => {
@@ -59,6 +65,11 @@ export function Dashboard() {
   const [searchBusy, setSearchBusy] = useState(false);
   const [wlFeedback, setWlFeedback] = useState<string | null>(null);
 
+  const LOCAL_WATCHLIST_KEY = "willr_watchlist_codes";
+  const [localCodes, setLocalCodes] = useState<string[]>([]);
+  // On Vercel the filesystem is read-only, so watchlist.txt cannot be edited.
+  const [watchlistWriteMode, setWatchlistWriteMode] = useState<"server" | "local">("server");
+
   const load = useCallback(async () => {
     setLoading(true);
     setErr(null);
@@ -69,6 +80,9 @@ export function Dashboard() {
         sort,
         recent: String(recent),
       });
+      if (universe === "watchlist" && localCodes.length > 0) {
+        p.set("watchlist_codes", localCodes.join(","));
+      }
       const res = await fetchSnapshot(p);
       setData(res);
       const first =
@@ -84,19 +98,36 @@ export function Dashboard() {
     } finally {
       setLoading(false);
     }
-  }, [universe, period, sort, recent]);
+  }, [universe, period, sort, recent, localCodes]);
 
   useEffect(() => {
     void load();
   }, [load]);
 
   useEffect(() => {
+    const raw = localStorage.getItem(LOCAL_WATCHLIST_KEY);
+    let parsedLocal: string[] = [];
+    if (raw) {
+      try {
+        const j = JSON.parse(raw);
+        if (Array.isArray(j)) parsedLocal = j.filter((x) => typeof x === "string");
+      } catch {
+        // ignore
+      }
+    }
+
+    if (parsedLocal.length > 0) {
+      setLocalCodes(parsedLocal);
+      setWatchlistWriteMode("local");
+      setWlEntries(parsedLocal.map((y) => ({ line: yahooToLine(y), yahoo: y })));
+    }
+
     void (async () => {
       try {
         const w = await fetchWatchlist();
-        setWlEntries(w.entries);
+        if (parsedLocal.length === 0) setWlEntries(w.entries);
       } catch {
-        setWlEntries([]);
+        if (parsedLocal.length === 0) setWlEntries([]);
       }
     })();
   }, []);
@@ -124,9 +155,35 @@ export function Dashboard() {
     };
   }, [debouncedSearch]);
 
+  const applyLocalWatchlist = useCallback(
+    (nextCodes: string[], feedback: string | null) => {
+      const unique = Array.from(new Set(nextCodes.map((c) => c.trim()).filter(Boolean)));
+      setLocalCodes(unique);
+      localStorage.setItem(LOCAL_WATCHLIST_KEY, JSON.stringify(unique));
+      setWlEntries(unique.map((y) => ({ line: yahooToLine(y), yahoo: y })));
+      setWlFeedback(feedback);
+      if (universe === "watchlist") void load();
+    },
+    [universe, load]
+  );
+
   const applyWatchlistPatch = useCallback(
     async (patch: { add?: string[]; remove?: string[] }) => {
+      const add = patch.add ?? [];
+      const remove = patch.remove ?? [];
+      const msgOf = (e: unknown) => (e instanceof Error ? e.message : String(e));
+
       setWlFeedback(null);
+
+      if (watchlistWriteMode === "local") {
+        const base = localCodes.length > 0 ? localCodes : wlEntries.map((e) => e.yahoo);
+        const next = Array.from(
+          new Set([...base, ...add].filter((c) => !remove.includes(c)))
+        );
+        applyLocalWatchlist(next, "已更新本機自選股（Vercel 無法寫入檔案）");
+        return;
+      }
+
       try {
         const r = await patchWatchlist(patch);
         setWlEntries(r.entries);
@@ -138,12 +195,38 @@ export function Dashboard() {
             `略過：${r.skipped.map((s) => `${s.symbol}（${s.reason}）`).join("；")}`
           );
         setWlFeedback(parts.length ? parts.join(" · ") : null);
+
+        // 成功走 server 模式後，清掉 local override
+        setLocalCodes([]);
+        localStorage.removeItem(LOCAL_WATCHLIST_KEY);
+        setWatchlistWriteMode("server");
+
         if (universe === "watchlist") void load();
       } catch (e) {
-        setWlFeedback(e instanceof Error ? e.message : String(e));
+        const m = msgOf(e);
+
+        if (m.includes("read-only") || m.includes("501")) {
+          setWatchlistWriteMode("local");
+          const base = localCodes.length > 0 ? localCodes : wlEntries.map((x) => x.yahoo);
+          const next = Array.from(
+            new Set([...base, ...add].filter((c) => !remove.includes(c)))
+          );
+          applyLocalWatchlist(next, "偵測到 Vercel 無法寫入 watchlist.txt，改用本機自選股（localStorage）。");
+          return;
+        }
+
+        setWlFeedback(m);
       }
     },
-    [universe, load]
+    [
+      applyLocalWatchlist,
+      localCodes,
+      wlEntries,
+      watchlistWriteMode,
+      universe,
+      load,
+      LOCAL_WATCHLIST_KEY,
+    ]
   );
 
   const barData = useMemo(() => {

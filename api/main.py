@@ -23,6 +23,7 @@ from willr_core import (  # noqa: E402
     read_watchlist_entries,
     run_snapshot,
     search_tw_symbols,
+    symbol_line_to_yahoo,
     watchlist_add,
     watchlist_remove,
 )
@@ -70,8 +71,17 @@ def snapshot(
     sort: SortKey = Query("symbol"),
     recent: int = Query(30, ge=0, le=250, description="Trading days of history per symbol"),
     workers: int = Query(10, ge=1, le=32),
+    watchlist_codes: str | None = Query(
+        None,
+        description="Optional comma-separated yahoo symbols to override watchlist.txt (e.g. 2330.TW,6488.TWO).",
+    ),
 ) -> dict:
     try:
+        symbols_override: list[str] | None = None
+        if universe == "watchlist" and watchlist_codes and watchlist_codes.strip():
+            tokens = [t.strip() for t in watchlist_codes.split(",") if t.strip()]
+            if tokens:
+                symbols_override = [symbol_line_to_yahoo(t) for t in tokens]
         return run_snapshot(
             universe=universe,
             period=period,
@@ -79,6 +89,7 @@ def snapshot(
             recent=recent,
             workers=workers,
             watchlist_path=WATCHLIST_PATH,
+            symbols_override=symbols_override,
         )
     except ValueError as e:
         raise HTTPException(status_code=400, detail=str(e)) from e
