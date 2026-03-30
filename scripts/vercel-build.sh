@@ -15,15 +15,3 @@ mkdir -p public
 cp -r dashboard/dist/. public/
 
 echo "[vercel-build] Done."
-
-#!/usr/bin/env bash
-# Build Vite dashboard into public/ for Vercel static CDN + same-origin /api routes.
-set -euo pipefail
-ROOT="$(cd "$(dirname "$0")/.." && pwd)"
-cd "$ROOT/dashboard"
-npm ci
-npm run build
-cd "$ROOT"
-rm -rf public
-mkdir -p public
-cp -r dashboard/dist/. public/

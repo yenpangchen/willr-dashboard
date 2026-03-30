@@ -30,7 +30,8 @@ from willr_core import (  # noqa: E402
 WATCHLIST_PATH = ROOT / "watchlist.txt"
 IS_VERCEL = os.environ.get("VERCEL") == "1"
 STATIC_DIR = Path(
-    os.environ.get("WILLR_STATIC_DIR", str(ROOT / "dashboard" / "dist"))
+    # Vercel builds front-end assets into `public/`
+    os.environ.get("WILLR_STATIC_DIR", str(ROOT / "public"))
 ).resolve()
 
 app = FastAPI(title="WillR Dashboard API", version="1.0.0")
@@ -123,7 +124,7 @@ def patch_watchlist(body: WatchlistPatch) -> dict[str, Any]:
     return out
 
 
-if (not IS_VERCEL) and STATIC_DIR.is_dir():
+if STATIC_DIR.is_dir():
     app.mount("/", StaticFiles(directory=str(STATIC_DIR), html=True), name="spa")
 
 
