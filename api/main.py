@@ -30,8 +30,9 @@ from willr_core import (  # noqa: E402
 WATCHLIST_PATH = ROOT / "watchlist.txt"
 IS_VERCEL = os.environ.get("VERCEL") == "1"
 STATIC_DIR = Path(
-    # Vercel builds front-end assets into `public/`
-    os.environ.get("WILLR_STATIC_DIR", str(ROOT / "public"))
+    # Put static assets inside the backend bundle so Vercel Functions can read them.
+    # Default location is `api/static/` (populated by scripts/vercel-build.sh).
+    os.environ.get("WILLR_STATIC_DIR", str(ROOT / "api" / "static"))
 ).resolve()
 
 app = FastAPI(title="WillR Dashboard API", version="1.0.0")
