@@ -159,6 +159,35 @@ def snapshot_to_json_records(df: pd.DataFrame) -> list[dict[str, Any]]:
     return [{k: _sanitize_json_value(v) for k, v in r.items()} for r in records]
 
 
+def fetch_yahoo_names(symbols: list[str]) -> dict[str, str]:
+    """Fetch symbol -> display name (best-effort) via yfinance.
+
+    Note: Direct quote endpoints may return 401; yfinance handles cookies/crumbs.
+    """
+    if not symbols:
+        return {}
+
+    out: dict[str, str] = {}
+    max_workers = max(1, min(8, len(symbols)))
+
+    def job(sym: str) -> tuple[str, str]:
+        try:
+            info = yf.Ticker(sym).get_info()
+            name = (info.get("shortName") or info.get("longName") or "").strip()
+            return sym, name
+        except Exception:
+            return sym, ""
+
+    with ThreadPoolExecutor(max_workers=max_workers) as ex:
+        futures = {ex.submit(job, s): s for s in symbols}
+        for fut in as_completed(futures):
+            sym, name = fut.result()
+            if name:
+                out[sym] = name
+
+    return out
+
+
 def run_snapshot(
     *,
     universe: Universe,
@@ -195,6 +224,14 @@ def run_snapshot(
                 recent_parts.append(rdf)
 
     out = pd.DataFrame(rows)
+
+    # Add display name (best-effort).
+    try:
+        name_map = fetch_yahoo_names([str(s) for s in out["symbol"].tolist() if s])
+        out.insert(1, "name", out["symbol"].map(lambda s: name_map.get(str(s), "")))
+    except Exception:
+        out.insert(1, "name", "")
+
     if sort_key == "williams_r":
         out = out.sort_values(
             ["williams_r", "symbol"],

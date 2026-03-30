@@ -1,5 +1,6 @@
 export type SnapshotRow = {
   symbol: string;
+  name: string;
   as_of: string | null;
   open: number | null;
   high: number | null;

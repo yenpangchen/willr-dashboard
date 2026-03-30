@@ -584,6 +584,7 @@ export function Dashboard() {
             <thead>
               <tr>
                 <th>代號</th>
+                <th>名稱</th>
                 <th>日</th>
                 <th className="num">開</th>
                 <th className="num">高</th>
@@ -603,6 +604,7 @@ export function Dashboard() {
                   onClick={() => setSelected(row.symbol)}
                 >
                   <td>{row.symbol}</td>
+                  <td className="muted" style={{ maxWidth: 260, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }} title={row.name || ""}>{row.name || "—"}</td>
                   <td>{row.as_of ?? "—"}</td>
                   <td className="num">{row.open ?? "—"}</td>
                   <td className="num">{row.high ?? "—"}</td>
