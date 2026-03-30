@@ -18,6 +18,10 @@ dashboard/node_modules/
 dashboard/dist/
 node_modules/
 
+# Vercel: build output to public/ (generated during CI)
+public/
+!public/.gitkeep
+
 # Secrets & local env (never commit real keys)
 .env
 .env.*

@@ -28,6 +28,7 @@ from willr_core import (  # noqa: E402
 )
 
 WATCHLIST_PATH = ROOT / "watchlist.txt"
+IS_VERCEL = os.environ.get("VERCEL") == "1"
 STATIC_DIR = Path(
     os.environ.get("WILLR_STATIC_DIR", str(ROOT / "dashboard" / "dist"))
 ).resolve()
@@ -101,6 +102,13 @@ class WatchlistPatch(BaseModel):
 
 @app.post("/api/watchlist")
 def patch_watchlist(body: WatchlistPatch) -> dict[str, Any]:
+    if IS_VERCEL:
+        # Vercel Functions run on a read-only filesystem (except /tmp),
+        # so writing watchlist.txt would fail.
+        raise HTTPException(
+            status_code=501,
+            detail="watchlist.txt is read-only on Vercel. Edit watchlist.txt in the repo and redeploy.",
+        )
     if not body.add and not body.remove:
         raise HTTPException(status_code=400, detail="Provide `add` and/or `remove`")
     out: dict[str, Any] = {"entries": read_watchlist_entries(WATCHLIST_PATH)}
@@ -115,7 +123,7 @@ def patch_watchlist(body: WatchlistPatch) -> dict[str, Any]:
     return out
 
 
-if STATIC_DIR.is_dir():
+if (not IS_VERCEL) and STATIC_DIR.is_dir():
     app.mount("/", StaticFiles(directory=str(STATIC_DIR), html=True), name="spa")
 
 
