@@ -17,7 +17,57 @@ WillR provides a TW50 Williams %R dashboard and API.
 - Snapshot includes symbol, name, OHLC, volume, day change, and Williams %R
 - Click a row to view recent close + %R trend
 
-## Architecture (Phase B)
+## Features
+
+- TW50 fixed universe snapshot (`/api/snapshot`)
+- Dashboard range filters for Williams %R
+- Symbol table with name, OHLC, volume, day change, %R
+- Selected symbol trend chart (close + %R)
+- DB-first data read with live fallback
+- Redis cache for snapshot API (best-effort)
+- Daily ingestion job with retry/backoff
+- Cache invalidation after ingestion success
+- Job run tracking (`job_runs`) and freshness API (`/api/meta`)
+- Structured JSON logs and optional webhook alert
+
+## Flow Diagram
+
+### Request Flow (`/api/snapshot`)
+
+```mermaid
+flowchart TD
+    A[Client: React Dashboard] --> B[FastAPI /api/snapshot]
+    B --> C{Redis cache hit?}
+    C -- Yes --> D[Return cached payload]
+    C -- No --> E[Read SQLite snapshot/history]
+    E --> F{DB has data?}
+    F -- Yes --> G[Sort payload + write cache]
+    G --> H[Return source=db]
+    F -- No --> I{ALLOW_LIVE_FALLBACK?}
+    I -- No --> J[Return empty payload]
+    I -- Yes --> K[Fetch Yahoo + compute Williams %R]
+    K --> L[Write cache]
+    L --> M[Return source=live_fallback]
+```
+
+### Ingestion Flow (`jobs/daily_ingest.py`)
+
+```mermaid
+flowchart TD
+    A[External scheduler / manual run] --> B[Load TW50 symbols]
+    B --> C[Fetch Yahoo history per symbol]
+    C --> D[Retry + backoff on fetch failure]
+    D --> E[Compute Williams %R]
+    E --> F[Upsert symbols/prices/indicators into SQLite]
+    F --> G[Invalidate Redis snapshot cache]
+    G --> H[Write job_runs success metrics]
+    D --> I[Track failed symbols]
+    I --> J[Optional webhook alert]
+    F --> K{Unhandled exception?}
+    K -- Yes --> L[Write job_runs failed + alert]
+```
+
+## Architecture (Phase C)
 
 This repository is being migrated to a product-style architecture.
 
