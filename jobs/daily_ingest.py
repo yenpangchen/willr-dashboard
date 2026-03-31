@@ -18,6 +18,8 @@ from willr_core import fetch_history, fetch_yahoo_names, load_symbols, williams_
 
 logger = get_logger(__name__)
 
+INCREMENTAL_LOOKBACK_DAYS = 60
+
 
 def _fetch_history_with_retry(sym: str, lookback_days: int) -> pd.DataFrame:
     retries = max(1, settings.ingest_fetch_retries)
@@ -46,7 +48,6 @@ def _fetch_history_with_retry(sym: str, lookback_days: int) -> pd.DataFrame:
 
 def run(period: int = 14, lookback_days: int = 240) -> None:
     started_at = datetime.utcnow()
-    log_event(logger, logging.INFO, "daily_ingest_start", period=period, lookback_days=lookback_days)
     init_db()
     with SessionLocal() as db:
         repo = SnapshotRepository(db)
@@ -54,14 +55,30 @@ def run(period: int = 14, lookback_days: int = 240) -> None:
             symbols = load_symbols(settings.data_dir.parent / "tw50_constituents.txt")
             name_map = fetch_yahoo_names(symbols)
 
+            latest = repo.latest_trade_date(period=period, universe="tw50")
+            is_bootstrap = latest is None
+            effective_lookback_days = lookback_days if is_bootstrap else INCREMENTAL_LOOKBACK_DAYS
+            log_event(
+                logger,
+                logging.INFO,
+                "daily_ingest_start",
+                period=period,
+                lookback_days=effective_lookback_days,
+                mode="bootstrap" if is_bootstrap else "incremental",
+                latest_trade_date=latest,
+            )
+
             symbol_rows = [{"symbol": s, "name": name_map.get(s, ""), "universe": "tw50"} for s in symbols]
             price_rows: list[dict] = []
             wr_rows: list[dict] = []
             failed_symbols: list[str] = []
 
-            for sym in symbols:
+            total = len(symbols)
+            for i, sym in enumerate(symbols, start=1):
+                if i == 1 or i % 5 == 0 or i == total:
+                    log_event(logger, logging.INFO, "daily_ingest_progress", done=i, total=total, symbol=sym)
                 try:
-                    hist = _fetch_history_with_retry(sym, lookback_days)
+                    hist = _fetch_history_with_retry(sym, effective_lookback_days)
                 except Exception:
                     failed_symbols.append(sym)
                     continue
