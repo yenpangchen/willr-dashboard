@@ -32,6 +32,16 @@ class Settings(BaseSettings):
 
     # Redis (phase C)
     redis_url: str = "redis://localhost:6379/0"
+    cache_enabled: bool = True
+    snapshot_cache_ttl_seconds: int = 180
+    cache_key_prefix: str = "willr"
+
+    # Ingestion resiliency (phase C)
+    ingest_fetch_retries: int = 3
+    ingest_retry_backoff_seconds: float = 0.8
+
+    # Alerting (phase C)
+    alert_webhook_url: str = ""
 
     @property
     def is_vercel(self) -> bool:

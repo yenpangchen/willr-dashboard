@@ -1,11 +1,16 @@
 from __future__ import annotations
 
+import logging
 from typing import Any
 
 from config.settings import settings
 from db.engine import SessionLocal
 from repository.snapshot_repo import SnapshotRepository
+from services.cache_service import build_snapshot_cache_key, get_json, set_json
+from services.observability import get_logger, log_event
 from willr_core import run_snapshot
+
+logger = get_logger(__name__)
 
 
 def _sort_snapshot(rows: list[dict[str, Any]], sort_key: str) -> list[dict[str, Any]]:
@@ -23,6 +28,13 @@ def _sort_snapshot(rows: list[dict[str, Any]], sort_key: str) -> list[dict[str, 
 
 
 def get_snapshot(period: int, sort_key: str, recent: int, workers: int) -> dict[str, Any]:
+    cache_key = build_snapshot_cache_key(period, sort_key, recent)
+    cached = get_json(cache_key)
+    if cached:
+        cached["source"] = "cache"
+        log_event(logger, logging.INFO, "snapshot_cache_hit", key=cache_key)
+        return cached
+
     snap: list[dict[str, Any]] = []
     hist: list[dict[str, Any]] = []
     db_ok = True
@@ -35,7 +47,7 @@ def get_snapshot(period: int, sort_key: str, recent: int, workers: int) -> dict[
         db_ok = False
 
     if snap:
-        return {
+        payload = {
             "universe": "tw50",
             "period": period,
             "sort": sort_key,
@@ -44,8 +56,10 @@ def get_snapshot(period: int, sort_key: str, recent: int, workers: int) -> dict[
             "history": hist,
             "source": "db",
         }
+        set_json(cache_key, payload, settings.snapshot_cache_ttl_seconds)
+        return payload
     if not settings.allow_live_fallback:
-        return {
+        payload = {
             "universe": "tw50",
             "period": period,
             "sort": sort_key,
@@ -54,6 +68,7 @@ def get_snapshot(period: int, sort_key: str, recent: int, workers: int) -> dict[
             "history": [],
             "source": "db_unavailable" if not db_ok else "db_empty",
         }
+        return payload
 
     payload = run_snapshot(
         universe="tw50",
@@ -63,6 +78,17 @@ def get_snapshot(period: int, sort_key: str, recent: int, workers: int) -> dict[
         workers=workers,
     )
     payload["source"] = "live_fallback"
+    if payload.get("snapshot"):
+        set_json(cache_key, payload, settings.snapshot_cache_ttl_seconds)
+    log_event(
+        logger,
+        logging.INFO,
+        "snapshot_live_fallback",
+        period=period,
+        recent=recent,
+        db_ok=db_ok,
+        snapshot_size=len(payload.get("snapshot") or []),
+    )
     return payload
 
 

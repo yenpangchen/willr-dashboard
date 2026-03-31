@@ -33,11 +33,11 @@ This document tracks architecture decisions and implementation progress.
 - [x] Persist job runs / ingestion metrics.
 - [x] Add `/api/meta` for data freshness and job status.
 
-### Phase C (next)
+### Phase C (done)
 
-- [ ] Add Redis cache around snapshot endpoint.
-- [ ] Add cache invalidation after ingestion.
-- [ ] Add alerting / retries / structured logging.
+- [x] Add Redis cache around snapshot endpoint.
+- [x] Add cache invalidation after ingestion.
+- [x] Add alerting / retries / structured logging.
 
 ## Notes
 

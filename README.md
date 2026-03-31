@@ -128,6 +128,14 @@ Use any external scheduler to run `jobs/daily_ingest.py` once daily, e.g.:
 
 Suggested schedule: market close + buffer (e.g. Asia/Taipei 18:00).
 
+## Cache / Reliability (Phase C)
+
+- `/api/snapshot` uses Redis cache when available.
+- `daily_ingest` evicts snapshot cache after successful upsert.
+- Ingestion fetch has retry with backoff.
+- Structured JSON logs are emitted for snapshot/ingest events.
+- Optional webhook alerts can be enabled via `ALERT_WEBHOOK_URL`.
+
 ## CLI
 
 ```bash
