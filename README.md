@@ -208,6 +208,10 @@ Example URL format:
 postgresql+psycopg://USER:PASSWORD@HOST:5432/postgres?sslmode=require
 ```
 
+Note:
+
+- Supabase may provide `postgresql://...` (or `postgres://...`). This app normalizes it to `postgresql+psycopg://...` automatically.
+
 With this setup:
 
 - API and ingestion share the same persistent DB.
