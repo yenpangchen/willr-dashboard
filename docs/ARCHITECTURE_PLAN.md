@@ -13,7 +13,7 @@ This document tracks architecture decisions and implementation progress.
 
 ## Phases
 
-### Phase A (current)
+### Phase A (done)
 
 - [x] Define architecture folders (`config`, `db`, `repository`, `services`, `jobs`).
 - [x] Introduce app settings module.
@@ -26,12 +26,12 @@ This document tracks architecture decisions and implementation progress.
 - [x] Keep current API contract for frontend compatibility.
 - [x] Rewrite README to remove machine-specific absolute paths.
 
-### Phase B (next)
+### Phase B (done)
 
-- [ ] Move API to DB-only mode.
-- [ ] Schedule daily ingestion via external worker.
-- [ ] Persist job runs / ingestion metrics.
-- [ ] Add `/api/meta` for data freshness and job status.
+- [x] Move API to DB-only mode.
+- [x] Schedule daily ingestion via external worker.
+- [x] Persist job runs / ingestion metrics.
+- [x] Add `/api/meta` for data freshness and job status.
 
 ### Phase C (next)
 
@@ -41,6 +41,6 @@ This document tracks architecture decisions and implementation progress.
 
 ## Notes
 
-- In Phase A, fallback-to-live avoids service interruption while DB bootstrap is incomplete.
-- In production mode later, fallback should be disabled to keep predictable latency/cost.
+- Phase B removes API live-fallback; API now reads DB only.
+- External worker execution model: run `jobs/daily_ingest.py` on scheduler (cron/GitHub Actions/VM worker).
 

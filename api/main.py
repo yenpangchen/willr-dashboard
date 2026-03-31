@@ -17,7 +17,7 @@ if str(ROOT) not in sys.path:
 
 from config.settings import settings  # noqa: E402
 from db.init_db import init_db  # noqa: E402
-from services.snapshot_service import get_snapshot  # noqa: E402
+from services.snapshot_service import get_meta, get_snapshot  # noqa: E402
 from willr_core import SortKey  # noqa: E402
 
 STATIC_DIR = Path(os.environ.get("WILLR_STATIC_DIR", str(settings.static_dir))).resolve()
@@ -66,7 +66,23 @@ def snapshot(
     try:
         return get_snapshot(period=period, sort_key=sort, recent=recent, workers=workers)
     except ValueError as e:
-        raise HTTPException(status_code=400, detail=str(e)) from e
+        detail = str(e)
+        if detail.startswith("db_unavailable:"):
+            raise HTTPException(status_code=503, detail=detail) from e
+        raise HTTPException(status_code=400, detail=detail) from e
+
+
+@app.get("/api/meta")
+def meta(
+    period: int = Query(settings.default_period, ge=2, le=120),
+) -> dict:
+    try:
+        return get_meta(period=period)
+    except ValueError as e:
+        detail = str(e)
+        if detail.startswith("db_unavailable:"):
+            raise HTTPException(status_code=503, detail=detail) from e
+        raise HTTPException(status_code=400, detail=detail) from e
 
 
 if STATIC_DIR.is_dir():

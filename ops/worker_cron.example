@@ -1,0 +1,5 @@
+# Example cron entry for external worker (runs daily at 18:00 local timezone).
+# Adjust path and timezone according to your environment.
+#
+# 0 18 * * * cd /path/to/willr && PYTHONPATH=. /path/to/willr/.venv/bin/python jobs/daily_ingest.py >> /var/log/willr_daily_ingest.log 2>&1
+

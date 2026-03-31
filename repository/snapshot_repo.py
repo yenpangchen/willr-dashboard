@@ -68,16 +68,56 @@ class SnapshotRepository:
             self.db.execute(stmt)
         self.db.commit()
 
-    def add_job_run(self, job_name: str, status: str, message: str = "") -> None:
+    def add_job_run(
+        self,
+        job_name: str,
+        status: str,
+        message: str = "",
+        started_at: datetime | None = None,
+        finished_at: datetime | None = None,
+    ) -> None:
+        now = datetime.utcnow()
         self.db.add(
             JobRun(
                 job_name=job_name,
                 status=status,
                 message=message,
-                finished_at=datetime.utcnow(),
+                started_at=started_at or now,
+                finished_at=finished_at or now,
             )
         )
         self.db.commit()
+
+    def latest_job_run(self, job_name: str) -> dict[str, Any] | None:
+        row = self.db.execute(
+            select(JobRun)
+            .where(JobRun.job_name == job_name)
+            .order_by(JobRun.started_at.desc())
+            .limit(1)
+        ).scalar_one_or_none()
+        if row is None:
+            return None
+        return {
+            "job_name": row.job_name,
+            "status": row.status,
+            "message": row.message,
+            "started_at": row.started_at.isoformat() if row.started_at else None,
+            "finished_at": row.finished_at.isoformat() if row.finished_at else None,
+        }
+
+    def latest_trade_date(self, period: int, universe: str = "tw50") -> str | None:
+        max_date = self.db.scalar(
+            select(func.max(IndicatorWilliams.trade_date))
+            .join(Symbol, Symbol.symbol == IndicatorWilliams.symbol)
+            .where(and_(IndicatorWilliams.period == period, Symbol.universe == universe))
+        )
+        if max_date is None:
+            return None
+        return max_date.isoformat() if isinstance(max_date, date) else str(max_date)
+
+    def symbol_count(self, universe: str = "tw50") -> int:
+        n = self.db.scalar(select(func.count(Symbol.id)).where(Symbol.universe == universe))
+        return int(n or 0)
 
     def latest_snapshot(self, period: int, universe: str = "tw50") -> list[dict[str, Any]]:
         max_date = self.db.scalar(select(func.max(IndicatorWilliams.trade_date)).where(IndicatorWilliams.period == period))

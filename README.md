@@ -17,7 +17,7 @@ WillR provides a TW50 Williams %R dashboard and API.
 - Snapshot includes symbol, name, OHLC, volume, day change, and Williams %R
 - Click a row to view recent close + %R trend
 
-## Architecture (Phase A)
+## Architecture (Phase B)
 
 This repository is being migrated to a product-style architecture.
 
@@ -25,7 +25,7 @@ This repository is being migrated to a product-style architecture.
 - `db/`: SQLite engine and schema
 - `repository/`: data access layer
 - `services/`: use-case orchestration
-- `jobs/`: ingestion jobs (manual/external worker)
+- `jobs/`: ingestion jobs (external worker / scheduler)
 - `api/`: HTTP layer
 
 Phase tracking document: `docs/ARCHITECTURE_PLAN.md`
@@ -73,7 +73,7 @@ Health check.
 
 ### `GET /api/snapshot`
 
-Returns TW50 snapshot and recent history.
+Returns TW50 snapshot and recent history from **DB only**.
 
 Query params:
 
@@ -88,15 +88,39 @@ Example:
 curl -s "http://127.0.0.1:8000/api/snapshot?period=14&sort=symbol&recent=60"
 ```
 
-## Daily Ingestion Job (Phase A bootstrap)
+### `GET /api/meta`
 
-Run manually to initialize/populate SQLite:
+Returns data freshness and ingestion status:
+
+- latest trade date for selected period
+- latest `daily_ingest` job run status/message
+- symbol count
+
+Example:
+
+```bash
+curl -s "http://127.0.0.1:8000/api/meta?period=14"
+```
+
+## Daily Ingestion Job (Phase B)
+
+Run manually (same command used by external worker):
 
 ```bash
 PYTHONPATH=. .venv/bin/python jobs/daily_ingest.py
 ```
 
-This writes into `data/willr.db`.
+This writes into SQLite (`data/willr.db` locally, `/tmp/willr.db` on Vercel runtime).
+
+### External Worker Scheduling
+
+Use any external scheduler to run `jobs/daily_ingest.py` once daily, e.g.:
+
+- OS cron on a VM/container
+- GitHub Actions schedule
+- a dedicated worker service
+
+Suggested schedule: market close + buffer (e.g. Asia/Taipei 18:00).
 
 ## CLI
 
@@ -112,6 +136,8 @@ Included:
 - `scripts/vercel-build.sh` (builds dashboard and copies assets to `api/static`)
 
 Deploy from repo root.
+
+Note: Vercel runtime filesystem is ephemeral (`/tmp` writable). Persistent historical storage should run on a persistent host/DB.
 
 ## Project Structure
 
