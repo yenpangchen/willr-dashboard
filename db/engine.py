@@ -9,7 +9,7 @@ from config.settings import settings
 
 
 def _sqlite_url() -> str:
-    db_path = settings.sqlite_path
+    db_path = settings.effective_sqlite_path
     if not db_path.is_absolute():
         db_path = Path.cwd() / db_path
     db_path.parent.mkdir(parents=True, exist_ok=True)

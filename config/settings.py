@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import os
 from pathlib import Path
 
 from pydantic_settings import BaseSettings, SettingsConfigDict
@@ -31,6 +32,17 @@ class Settings(BaseSettings):
 
     # Redis (phase C)
     redis_url: str = "redis://localhost:6379/0"
+
+    @property
+    def is_vercel(self) -> bool:
+        return os.environ.get("VERCEL") == "1"
+
+    @property
+    def effective_sqlite_path(self) -> Path:
+        # Vercel runtime filesystem is read-only except /tmp.
+        if self.is_vercel:
+            return Path("/tmp/willr.db")
+        return self.sqlite_path
 
 
 settings = Settings()

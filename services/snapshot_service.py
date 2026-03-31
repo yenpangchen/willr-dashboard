@@ -23,10 +23,16 @@ def _sort_snapshot(rows: list[dict[str, Any]], sort_key: str) -> list[dict[str, 
 
 
 def get_snapshot(period: int, sort_key: str, recent: int, workers: int) -> dict[str, Any]:
-    with SessionLocal() as db:
-        repo = SnapshotRepository(db)
-        snap = repo.latest_snapshot(period=period, universe="tw50")
-        hist = repo.recent_history(period=period, recent=recent, universe="tw50") if snap else []
+    snap: list[dict[str, Any]] = []
+    hist: list[dict[str, Any]] = []
+    db_ok = True
+    try:
+        with SessionLocal() as db:
+            repo = SnapshotRepository(db)
+            snap = repo.latest_snapshot(period=period, universe="tw50")
+            hist = repo.recent_history(period=period, recent=recent, universe="tw50") if snap else []
+    except Exception:
+        db_ok = False
 
     if snap:
         return {
@@ -47,7 +53,7 @@ def get_snapshot(period: int, sort_key: str, recent: int, workers: int) -> dict[
             "recent_sessions": recent,
             "snapshot": [],
             "history": [],
-            "source": "db_empty",
+            "source": "db_unavailable" if not db_ok else "db_empty",
         }
 
     payload = run_snapshot(

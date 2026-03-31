@@ -23,7 +23,7 @@ from willr_core import SortKey  # noqa: E402
 STATIC_DIR = Path(os.environ.get("WILLR_STATIC_DIR", str(settings.static_dir))).resolve()
 
 app = FastAPI(title=settings.app_name, version=settings.app_version)
-init_db()
+DB_READY = init_db()
 
 _cors_env = os.environ.get("WILLR_CORS_ORIGINS", settings.cors_origins).strip()
 if _cors_env:
@@ -48,7 +48,12 @@ app.add_middleware(
 
 @app.get("/api/health")
 def health() -> dict:
-    return {"ok": True}
+    return {
+        "ok": True,
+        "db_ready": DB_READY,
+        "is_vercel": settings.is_vercel,
+        "sqlite_path": str(settings.effective_sqlite_path),
+    }
 
 
 @app.get("/api/snapshot")
