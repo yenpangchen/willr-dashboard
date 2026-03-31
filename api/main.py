@@ -15,17 +15,17 @@ ROOT = Path(__file__).resolve().parents[1]
 if str(ROOT) not in sys.path:
     sys.path.insert(0, str(ROOT))
 
-from willr_core import SortKey, run_snapshot  # noqa: E402
+from config.settings import settings  # noqa: E402
+from db.init_db import init_db  # noqa: E402
+from services.snapshot_service import get_snapshot  # noqa: E402
+from willr_core import SortKey  # noqa: E402
 
-WATCHLIST_PATH = ROOT / "watchlist.txt"
-STATIC_DIR = Path(
-    # Put static assets inside the backend bundle so Vercel Functions can read them.
-    os.environ.get("WILLR_STATIC_DIR", str(ROOT / "api" / "static"))
-).resolve()
+STATIC_DIR = Path(os.environ.get("WILLR_STATIC_DIR", str(settings.static_dir))).resolve()
 
-app = FastAPI(title="WillR Dashboard API", version="1.0.0")
+app = FastAPI(title=settings.app_name, version=settings.app_version)
+init_db()
 
-_cors_env = os.environ.get("WILLR_CORS_ORIGINS", "").strip()
+_cors_env = os.environ.get("WILLR_CORS_ORIGINS", settings.cors_origins).strip()
 if _cors_env:
     _cors_list = [o.strip() for o in _cors_env.split(",") if o.strip()]
 else:
@@ -53,20 +53,13 @@ def health() -> dict:
 
 @app.get("/api/snapshot")
 def snapshot(
-    period: int = Query(14, ge=2, le=120),
+    period: int = Query(settings.default_period, ge=2, le=120),
     sort: SortKey = Query("symbol"),
-    recent: int = Query(60, ge=0, le=250, description="Trading days of history per symbol"),
+    recent: int = Query(settings.default_recent, ge=0, le=250, description="Trading days of history per symbol"),
     workers: int = Query(10, ge=1, le=32),
 ) -> dict:
     try:
-        return run_snapshot(
-            universe="tw50",
-            period=period,
-            sort_key=sort,
-            recent=recent,
-            workers=workers,
-            watchlist_path=WATCHLIST_PATH,
-        )
+        return get_snapshot(period=period, sort_key=sort, recent=recent, workers=workers)
     except ValueError as e:
         raise HTTPException(status_code=400, detail=str(e)) from e
 

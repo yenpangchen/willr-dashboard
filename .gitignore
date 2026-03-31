@@ -20,6 +20,9 @@ node_modules/
 
 # Vercel: build output to public/ (generated during CI)
 public/
+api/static/
+data/
+*.db
 
 # Secrets & local env (never commit real keys)
 .env

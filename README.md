@@ -1,124 +1,130 @@
-# WillR · 台股 Williams %R
+# WillR · Taiwan 50 Williams %R
 
-使用 **Yahoo Finance** 日線資料，計算台灣 50 成分股的 **Williams %R**，並提供：
+WillR provides a TW50 Williams %R dashboard and API.
 
-- CLI：`fetch_williams.py`
-- FastAPI：`/api/snapshot`
-- React 儀表板：區間篩選 + 表格 + 走勢圖
+- Frontend: React dashboard (range filters + table + trend chart)
+- Backend: FastAPI (`/api/snapshot`)
+- Data source: Yahoo Finance
 
-> 本專案僅供研究，不構成投資建議。
+> For research only. Not investment advice.
 
----
+## Current Product Scope
 
-## 主要功能（目前版本）
-
-- 只看 **台灣 50**（`tw50_constituents.txt`）
-- 儀表板可設定兩個 %R 區間（預設）：
+- Universe is fixed to **TW50** (`tw50_constituents.txt`)
+- Two configurable %R ranges on the dashboard (defaults):
   - `-100 ~ -90`
   - `-10 ~ 0`
-- 顯示每檔：代號、名稱、OHLC、成交量、日漲跌、%R
-- 點選股票可看最近 N 日「收盤 + %R」線圖
+- Snapshot includes symbol, name, OHLC, volume, day change, and Williams %R
+- Click a row to view recent close + %R trend
 
----
+## Architecture (Phase A)
 
-## 環境需求
+This repository is being migrated to a product-style architecture.
+
+- `config/`: settings and environment config
+- `db/`: SQLite engine and schema
+- `repository/`: data access layer
+- `services/`: use-case orchestration
+- `jobs/`: ingestion jobs (manual/external worker)
+- `api/`: HTTP layer
+
+Phase tracking document: `docs/ARCHITECTURE_PLAN.md`
+
+## Requirements
 
 - Python 3.9+
 - Node.js 18+
 
----
-
-## 安裝
+## Setup
 
 ```bash
-cd willr
 python3 -m venv .venv
 .venv/bin/pip install -r requirements.txt
 ```
 
-前端依賴：
-
 ```bash
 cd dashboard
 npm install
+cd ..
 ```
 
----
+## Local Development
 
-## 本機開發
-
-### 1) 啟動 API
+### Run API
 
 ```bash
-cd /Users/ypchen/development/willr
 PYTHONPATH=. .venv/bin/uvicorn api.main:app --reload --host 127.0.0.1 --port 8000
 ```
 
-### 2) 啟動前端
+### Run frontend
 
 ```bash
-cd /Users/ypchen/development/willr/dashboard
+cd dashboard
 npm run dev
 ```
 
-打開：`http://localhost:5173`
-
----
+Open `http://localhost:5173`.
 
 ## API
 
 ### `GET /api/health`
-健康檢查。
+
+Health check.
 
 ### `GET /api/snapshot`
-回傳台灣 50 快照 + 歷史序列。
+
+Returns TW50 snapshot and recent history.
 
 Query params:
 
-- `period`：%R 週期（預設 `14`）
-- `sort`：`symbol` / `williams_r` / `williams_r_desc`（預設 `symbol`）
-- `recent`：每檔回傳最近幾個交易日（預設 `60`）
-- `workers`：並行抓價數（預設 `10`）
+- `period` (default `14`)
+- `sort` (`symbol` / `williams_r` / `williams_r_desc`)
+- `recent` (default `60`)
+- `workers` (default `10`)
 
-範例：
+Example:
 
 ```bash
 curl -s "http://127.0.0.1:8000/api/snapshot?period=14&sort=symbol&recent=60"
 ```
 
----
+## Daily Ingestion Job (Phase A bootstrap)
+
+Run manually to initialize/populate SQLite:
+
+```bash
+PYTHONPATH=. .venv/bin/python jobs/daily_ingest.py
+```
+
+This writes into `data/willr.db`.
 
 ## CLI
 
 ```bash
-cd /Users/ypchen/development/willr
-.venv/bin/python fetch_williams.py --universe tw50 --period 14 --recent 5
+PYTHONPATH=. .venv/bin/python fetch_williams.py --universe tw50 --period 14 --recent 5
 ```
 
----
+## Vercel Deploy
 
-## 部署（Vercel）
-
-已內建：
+Included:
 
 - `vercel.json`
-- `scripts/vercel-build.sh`（建置前端並複製到 `api/static`）
+- `scripts/vercel-build.sh` (builds dashboard and copies assets to `api/static`)
 
-重點：
+Deploy from repo root.
 
-- Root directory 用 repo 根目錄
-- 部署後：
-  - 前端：`/`
-  - API：`/api/health`, `/api/snapshot`
-
----
-
-## 專案結構
+## Project Structure
 
 ```text
-willr/
-├── api/main.py
+.
+├── api/
+├── config/
+├── db/
+├── repository/
+├── services/
+├── jobs/
 ├── dashboard/
+├── docs/
 ├── tw50_constituents.txt
 ├── fetch_williams.py
 ├── willr_core.py
