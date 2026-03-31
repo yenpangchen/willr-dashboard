@@ -26,9 +26,9 @@ This document tracks architecture decisions and implementation progress.
 - [x] Keep current API contract for frontend compatibility.
 - [x] Rewrite README to remove machine-specific absolute paths.
 
-### Phase B (done)
+### Phase B (adjusted)
 
-- [x] Move API to DB-only mode.
+- [~] Move API to DB-first mode. (Temporary live fallback re-enabled for production stability)
 - [x] Schedule daily ingestion via external worker.
 - [x] Persist job runs / ingestion metrics.
 - [x] Add `/api/meta` for data freshness and job status.
@@ -41,6 +41,7 @@ This document tracks architecture decisions and implementation progress.
 
 ## Notes
 
-- Phase B removes API live-fallback; API now reads DB only.
+- Temporary decision (A-mode): API uses DB first with live fallback when DB empty/unavailable.
+- Target steady state: DB-only mode after persistent worker + storage is fully stable.
 - External worker execution model: run `jobs/daily_ingest.py` on scheduler (cron/GitHub Actions/VM worker).
 

@@ -73,7 +73,12 @@ Health check.
 
 ### `GET /api/snapshot`
 
-Returns TW50 snapshot and recent history from **DB only**.
+Returns TW50 snapshot and recent history.
+
+Current runtime behavior:
+
+- DB-first
+- fallback to live Yahoo if DB is empty/unavailable (temporary stability mode)
 
 Query params:
 
@@ -111,6 +116,7 @@ PYTHONPATH=. .venv/bin/python jobs/daily_ingest.py
 ```
 
 This writes into SQLite (`data/willr.db` locally, `/tmp/willr.db` on Vercel runtime).
+If DB has no data, `/api/snapshot` can still serve data via live fallback.
 
 ### External Worker Scheduling
 
