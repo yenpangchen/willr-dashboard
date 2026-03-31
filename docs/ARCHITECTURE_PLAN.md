@@ -7,7 +7,7 @@ This document tracks architecture decisions and implementation progress.
 - Scope: TW50 Williams %R dashboard (no custom watchlist/search in UI).
 - Data flow target: ingest once daily, API reads from DB/cache.
 - Infra target:
-  - DB: SQLite (current phase)
+  - DB: Postgres (Supabase)
   - Worker: external worker (next phase)
   - Cache: Redis (next phase)
 
@@ -17,7 +17,7 @@ This document tracks architecture decisions and implementation progress.
 
 - [x] Define architecture folders (`config`, `db`, `repository`, `services`, `jobs`).
 - [x] Introduce app settings module.
-- [x] Introduce SQLite models and initialization.
+- [x] Introduce relational DB models and initialization.
 - [x] Introduce repository layer for snapshot/history reads and upserts.
 - [x] Introduce service layer:
   - read from DB first

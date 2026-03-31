@@ -48,11 +48,13 @@ app.add_middleware(
 
 @app.get("/api/health")
 def health() -> dict:
+    db_url = settings.database_url.strip()
     return {
         "ok": True,
         "db_ready": DB_READY,
+        "db_backend": settings.db_backend,
         "is_vercel": settings.is_vercel,
-        "sqlite_path": str(settings.effective_sqlite_path),
+        "database_url_set": bool(db_url),
     }
 
 

@@ -13,7 +13,7 @@ class Settings(BaseSettings):
     app_version: str = "2.0.0"
 
     data_dir: Path = Path("data")
-    sqlite_path: Path = Path("data/willr.db")
+    database_url: str = ""
 
     # Frontend static assets (for FastAPI static mount)
     static_dir: Path = Path("api/static")
@@ -48,11 +48,8 @@ class Settings(BaseSettings):
         return os.environ.get("VERCEL") == "1"
 
     @property
-    def effective_sqlite_path(self) -> Path:
-        # Vercel runtime filesystem is read-only except /tmp.
-        if self.is_vercel:
-            return Path("/tmp/willr.db")
-        return self.sqlite_path
+    def db_backend(self) -> str:
+        return "postgres"
 
 
 settings = Settings()

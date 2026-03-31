@@ -5,7 +5,7 @@ from datetime import date, datetime
 from typing import Any
 
 from sqlalchemy import and_, func, select
-from sqlalchemy.dialects.sqlite import insert
+from sqlalchemy.dialects.postgresql import insert
 from sqlalchemy.orm import Session
 
 from db.models import DailyPrice, IndicatorWilliams, JobRun, Symbol

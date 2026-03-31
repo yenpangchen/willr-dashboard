@@ -39,7 +39,7 @@ flowchart TD
     A[Client: React Dashboard] --> B[FastAPI /api/snapshot]
     B --> C{Redis cache hit?}
     C -- Yes --> D[Return cached payload]
-    C -- No --> E[Read SQLite snapshot/history]
+    C -- No --> E[Read Postgres snapshot/history]
     E --> F{DB has data?}
     F -- Yes --> G[Sort payload + write cache]
     G --> H[Return source=db]
@@ -58,7 +58,7 @@ flowchart TD
     B --> C[Fetch Yahoo history per symbol]
     C --> D[Retry + backoff on fetch failure]
     D --> E[Compute Williams %R]
-    E --> F[Upsert symbols/prices/indicators into SQLite]
+    E --> F[Upsert symbols/prices/indicators into Postgres]
     F --> G[Invalidate Redis snapshot cache]
     G --> H[Write job_runs success metrics]
     D --> I[Track failed symbols]
@@ -72,7 +72,7 @@ flowchart TD
 This repository is being migrated to a product-style architecture.
 
 - `config/`: settings and environment config
-- `db/`: SQLite engine and schema
+- `db/`: Postgres engine and schema
 - `repository/`: data access layer
 - `services/`: use-case orchestration
 - `jobs/`: ingestion jobs (external worker / scheduler)
@@ -165,7 +165,8 @@ Run manually (same command used by external worker):
 PYTHONPATH=. .venv/bin/python jobs/daily_ingest.py
 ```
 
-This writes into SQLite (`data/willr.db` locally, `/tmp/willr.db` on Vercel runtime).
+This writes into Postgres (`DATABASE_URL`).
+
 If DB has no data, `/api/snapshot` can still serve data via live fallback.
 
 ### External Worker Scheduling
@@ -177,6 +178,41 @@ Use any external scheduler to run `jobs/daily_ingest.py` once daily, e.g.:
 - a dedicated worker service
 
 Suggested schedule: market close + buffer (e.g. Asia/Taipei 18:00).
+
+### GitHub Actions (Daily Auto Run)
+
+This repo includes `.github/workflows/daily-ingest.yml`:
+
+- trigger: daily at Asia/Taipei 18:05 (`cron: 5 10 * * *`)
+- trigger: manual run via `workflow_dispatch`
+- action: run `python jobs/daily_ingest.py`
+
+End-to-end flow after enabling this workflow:
+
+1. GitHub Actions starts on schedule.
+2. Runner checks out code and installs dependencies.
+3. Runner executes `jobs/daily_ingest.py`.
+4. Script fetches TW50 data from Yahoo, retries failed symbols, computes %R, writes to DB, and invalidates Redis snapshot cache.
+5. API requests (`/api/snapshot`) read cache/DB first; if DB is empty/unavailable, API falls back to live Yahoo (A-mode).
+
+### Supabase Setup (Recommended)
+
+1. Create a Supabase project and copy the Postgres connection string.
+2. Set `DATABASE_URL` in Vercel Environment Variables.
+3. Set `DATABASE_URL` in GitHub repository secret (`Settings -> Secrets and variables -> Actions`).
+4. Redeploy Vercel, then run GitHub Action `Daily Ingest` once manually to seed data.
+
+Example URL format:
+
+```bash
+postgresql+psycopg://USER:PASSWORD@HOST:5432/postgres?sslmode=require
+```
+
+With this setup:
+
+- API and ingestion share the same persistent DB.
+- `job_runs`, prices, and indicators remain available across deploy/restarts.
+- A-mode fallback still protects API availability.
 
 ## Cache / Reliability (Phase C)
 
